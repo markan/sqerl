@@ -117,6 +117,9 @@ basic_test_() ->
        fun select_created_by_lname/0},
       {<<"Select timestamp type">>,
        fun select_lname_by_created/0},
+      
+      {<<"ad hoc statement">>,
+       fun ad_hoc_statement/0},
 
       {<<"Tolerates bounced server">>,
        {timeout, 10,
@@ -204,6 +207,13 @@ delete_data() ->
     Expected = lists:duplicate(4, {ok, 1}),
     ?assertMatch(Expected, [sqerl:statement(delete_user_by_lname, [LName]) ||
                                [_, LName, _, _, _] <- ?NAMES]).
+
+ad_hoc_statement() ->
+    Query = <<"INSERT INTO users (first_name, last_name, high_score, created, active) VALUES ('Darth', 'Vader', '1000', '1976-07-04 16:47:46', 'true')">>,
+    ?debugVal(Query),
+    Returned = sqerl:ad_hoc_statement(Query, [], identity, []),
+    ?debugVal(Returned),
+    ?assertMatch({ok, 4}, Returned).
 
 bounced_server() ->
     case get_db_type() of

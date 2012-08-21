@@ -30,7 +30,9 @@
          select/4,
          statement/2,
          statement/3,
-         statement/4]).
+         statement/4,
+         ad_hoc_select/4,
+         ad_hoc_statement/4]).
 
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("sqerl.hrl").
@@ -107,6 +109,33 @@ statement(StmtName, StmtArgs, XformName, XformArgs) ->
         {error, Reason} ->
             parse_error(Reason)
     end.
+
+ad_hoc_statement(Statement, Args, XformName, XformArgs) ->
+    case execute_statement(Statement, Args, XformName, XformArgs,
+                           exec_ad_hoc_statement) of
+        {ok, 0} ->
+            {ok, none};
+        {ok, N} when is_number(N) ->
+            {ok, N};
+        {ok, ColumnDesc, Columns} ->
+            {ok, ColumnDesc, Columns};
+        {error, Reason} ->
+            parse_error(Reason)
+    end.
+
+ad_hoc_select(Statement, Args, XformName, XformArgs) ->
+    case execute_statement(Statement, Args, XformName, XformArgs,
+                           exec_ad_hoc_select) of
+        {ok, 0} ->
+            {ok, none};
+        {ok, N} when is_number(N) ->
+            {ok, N};
+        {ok, ColumnDesc, Columns} ->
+            {ok, ColumnDesc, Columns};
+        {error, Reason} ->
+            parse_error(Reason)
+    end.
+
 
 execute_statement(StmtName, StmtArgs, XformName, XformArgs, Executor) ->
     Xformer = erlang:apply(sqerl_transformers, XformName, XformArgs),

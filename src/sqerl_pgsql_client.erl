@@ -25,10 +25,13 @@
 
 -include_lib("epgsql/include/pgsql.hrl").
 
+-include_lib("eunit/include/eunit.hrl").
+
 %% sqerl_client callbacks
 -export([init/1,
          exec_prepared_statement/3,
          exec_prepared_select/3,
+         exec_ad_hoc_statement/3,
          is_connected/1]).
 
 -record(state,  {cn,
@@ -82,6 +85,29 @@ exec_prepared_statement(Name, Args, #state{cn=Cn, statements=Statements}=State) 
             _:X ->
                 rollback(Cn, {error, X}, State)
         end,
+    Rv.
+
+exec_ad_hoc_statement(Stmt, Args, #state{cn=Cn}=State) ->
+    ?debugVal({Stmt, Args}),
+    Rv =
+        try
+            case pgsql:equery(Cn, Stmt, Args) of
+                {ok, Count} -> % update/insert
+                    commit(Cn, Count, State),
+                    {ok, Count};
+                {ok, Count, Columns, Rows} -> % insert ... returning
+                    commit(Cn, Count, State),
+                    {ok, Count, Columns, Rows};
+                {ok, Columns, Rows} -> % select
+                    {ok, Columns, Rows};
+                R -> ?debugVal(R)
+            end
+        catch
+            _:X ->
+                ?debugVal(X),
+                rollback(Cn, {error, X}, State)
+        end,
+    ?debugVal(Rv),
     Rv.
 
 is_connected(#state{cn=Cn}=State) ->

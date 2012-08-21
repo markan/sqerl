@@ -46,6 +46,8 @@
          start_link/1,
          exec_prepared_select/3,
          exec_prepared_statement/3,
+         exec_ad_hoc_select/3,
+         exec_ad_hoc_statement/3,
          close/1]).
 
 %% gen_server callbacks
@@ -58,6 +60,8 @@
 
 %% behavior callback
 -export([behaviour_info/1]).
+
+-include_lib("eunit/include/eunit.hrl").
 
 -record(state, {cb_mod,
                 cb_state,
@@ -84,6 +88,14 @@ exec_prepared_select(Cn, Name, Args) when is_pid(Cn),
 exec_prepared_statement(Cn, Name, Args) when is_pid(Cn),
                                              is_atom(Name) ->
     gen_server:call(Cn, {exec_prepared_stmt, Name, Args}, infinity).
+
+%%% Unlike a select statement, this just returns an integer or an error.
+%-spec exec_ad_hoc_statement(pid(), atom(), []) -> integer() | {error, any()}.
+exec_ad_hoc_select(Cn, Stmt, Args) when is_pid(Cn) ->
+    gen_server:call(Cn, {exec_ad_hoc_select, Stmt, Args}, infinity).
+
+exec_ad_hoc_statement(Cn, Stmt, Args) when is_pid(Cn) ->
+    gen_server:call(Cn, {exec_ad_hoc_stmt, Stmt, Args}, infinity).
 
 
 %%% Close a connection
@@ -134,6 +146,14 @@ handle_call({exec_prepared_stmt, Name, Args}, _From, #state{cb_mod=CBMod,
                                                             timeout=Timeout}=State) ->
     ?LOG_STATEMENT(Name, Args),
     {Result, NewCBState} = CBMod:exec_prepared_statement(Name, Args, CBState),
+    ?LOG_RESULT(Result),
+    {reply, Result, State#state{cb_state=NewCBState}, Timeout};
+handle_call({exec_ad_hoc_stmt, Stmt, Args}, _From, #state{cb_mod=CBMod,
+                                                    cb_state=CBState,
+                                                    timeout=Timeout}=State) ->
+    ?LOG_STATEMENT("ad_hoc", Stmt),
+    ?debugVal(Stmt), ?debugVal(Args),
+    {Result, NewCBState} = CBMod:exec_ad_hoc_statement(Stmt, Args, CBState),
     ?LOG_RESULT(Result),
     {reply, Result, State#state{cb_state=NewCBState}, Timeout};
 handle_call(close, _From, State) ->
